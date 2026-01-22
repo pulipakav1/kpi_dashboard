@@ -1,20 +1,39 @@
 """
-PostgreSQL Data Loader Script
-Alternative method using Python + psycopg2
+PostgreSQL Data Loader Script for AWS RDS
+Uses Python + psycopg2 to load CSV data into AWS RDS PostgreSQL
 """
 import pandas as pd
 import psycopg2
 from psycopg2.extras import execute_values
 import os
 
-# Database connection parameters
-DB_CONFIG = {
-    'host': 'localhost',
-    'database': 'kpi_dashboard',
-    'user': 'postgres',
-    'password': 'your_password',  # Change this
-    'port': 5432
-}
+# ============================================
+# AWS RDS PostgreSQL Connection Configuration
+# ============================================
+# Option 1: Use config.py file (recommended - keeps credentials separate)
+#   - Copy config_template.py to config.py
+#   - Fill in your AWS RDS details
+#   - config.py is in .gitignore (won't be committed)
+#
+# Option 2: Update DB_CONFIG directly below
+
+try:
+    # Try to import from config.py if it exists
+    from config import DB_CONFIG
+    print("✅ Using configuration from config.py")
+except ImportError:
+    # Fall back to inline configuration
+    print("⚠️  config.py not found, using inline configuration")
+    print("   💡 Tip: Copy config_template.py to config.py for better security")
+    
+    DB_CONFIG = {
+        'host': 'your-rds-endpoint.region.rds.amazonaws.com',  # e.g., 'mydb.abc123.us-east-1.rds.amazonaws.com'
+        'database': 'kpi_dashboard',  # Create this database first if needed
+        'user': 'postgres',  # Your RDS master username
+        'password': 'your_password',  # Your RDS master password
+        'port': 5432,
+        'sslmode': 'require'  # AWS RDS requires SSL
+    }
 
 def create_tables(conn):
     """Create all tables"""
@@ -162,11 +181,44 @@ def verify_data(conn):
     print(f"\n   Active subscriptions: {active:,}")
     print(f"   Churned subscriptions: {churned:,}")
 
+def create_database_if_not_exists():
+    """Create database if it doesn't exist (connect to default 'postgres' DB first)"""
+    try:
+        # Connect to default postgres database to create our database
+        temp_config = DB_CONFIG.copy()
+        temp_config['database'] = 'postgres'  # Connect to default database
+        
+        print("Connecting to AWS RDS (default database)...")
+        conn = psycopg2.connect(**temp_config)
+        conn.autocommit = True
+        cur = conn.cursor()
+        
+        # Check if database exists
+        cur.execute("SELECT 1 FROM pg_database WHERE datname = %s", (DB_CONFIG['database'],))
+        exists = cur.fetchone()
+        
+        if not exists:
+            print(f"Creating database '{DB_CONFIG['database']}'...")
+            cur.execute(f"CREATE DATABASE {DB_CONFIG['database']};")
+            print("✅ Database created")
+        else:
+            print(f"✅ Database '{DB_CONFIG['database']}' already exists")
+        
+        cur.close()
+        conn.close()
+        
+    except Exception as e:
+        print(f"⚠️  Could not create database (may already exist): {e}")
+        print("   Continuing with existing database...")
+
 def main():
     """Main execution"""
     try:
+        # Create database if needed
+        create_database_if_not_exists()
+        
         # Connect to database
-        print("Connecting to PostgreSQL...")
+        print(f"\nConnecting to AWS RDS PostgreSQL at {DB_CONFIG['host']}...")
         conn = psycopg2.connect(**DB_CONFIG)
         print("✅ Connected successfully\n")
         
@@ -181,9 +233,23 @@ def main():
         
         conn.close()
         print("\n✅ Database setup complete!")
+        print("\n📝 Next Steps:")
+        print("   1. Verify data in AWS RDS Console")
+        print("   2. Proceed to SQL query development for KPIs")
+        print("   3. Connect Power BI / Tableau to this database")
         
+    except psycopg2.OperationalError as e:
+        print(f"\n❌ Connection Error: {e}")
+        print("\n💡 Troubleshooting:")
+        print("   1. Check your AWS RDS endpoint is correct")
+        print("   2. Verify security group allows your IP (port 5432)")
+        print("   3. Confirm username and password are correct")
+        print("   4. Ensure RDS instance is running")
+        return 1
     except Exception as e:
         print(f"\n❌ Error: {e}")
+        import traceback
+        traceback.print_exc()
         return 1
     
     return 0
