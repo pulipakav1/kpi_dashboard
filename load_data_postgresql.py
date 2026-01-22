@@ -1,32 +1,66 @@
-"""
-PostgreSQL Data Loader Script
-Alternative method using Python + psycopg2
-"""
 import pandas as pd
 import psycopg2
 from psycopg2.extras import execute_values
 import os
 
-# Database connection parameters
+# connection settings
 DB_CONFIG = {
-    'host': 'localhost',
-    'database': 'database-1',
+    'host': 'database-1.cbumigc8isn9.us-east-2.rds.amazonaws.com',
+    'database': 'postgres',
     'user': 'postgres',
-    'password': 'rohith7890',  # Change this
-    'port': 5432
+    'password': 'rohith7890',
+    'port': 5432,
+    'sslmode': 'require'
 }
 
-def create_tables(conn):
-    """Create all tables"""
+
+def check_tables_exist(conn):
+    cur = conn.cursor()
+    tables = ['customers', 'subscriptions', 'payments', 'costs']
+    existing_tables = {}
+    
+    for table in tables:
+        try:
+            cur.execute("""
+                SELECT EXISTS (
+                    SELECT FROM information_schema.tables 
+                    WHERE table_schema = 'public' 
+                    AND table_name = %s
+                );
+            """, (table,))
+            exists = cur.fetchone()[0]
+            existing_tables[table] = exists
+            
+            if exists:
+                cur.execute(f"SELECT COUNT(*) FROM {table};")
+                count = cur.fetchone()[0]
+                existing_tables[f"{table}_count"] = count
+        except Exception as e:
+            existing_tables[table] = False
+    
+    return existing_tables
+
+def drop_tables(conn):
     cur = conn.cursor()
     
-    # Drop tables if they exist (for clean setup)
+    print("Dropping existing tables (if any)...")
     cur.execute("DROP TABLE IF EXISTS payments CASCADE;")
     cur.execute("DROP TABLE IF EXISTS subscriptions CASCADE;")
     cur.execute("DROP TABLE IF EXISTS customers CASCADE;")
     cur.execute("DROP TABLE IF EXISTS costs CASCADE;")
+    conn.commit()
+    print("Tables dropped")
+
+def create_tables(conn):
+    cur = conn.cursor()
     
-    # Create customers table
+    print("Cleaning up existing tables...")
+    cur.execute("DROP TABLE IF EXISTS payments CASCADE;")
+    cur.execute("DROP TABLE IF EXISTS subscriptions CASCADE;")
+    cur.execute("DROP TABLE IF EXISTS customers CASCADE;")
+    cur.execute("DROP TABLE IF EXISTS costs CASCADE;")
+    conn.commit()
+    
     cur.execute("""
         CREATE TABLE customers (
             customer_id VARCHAR(20) PRIMARY KEY,
@@ -38,7 +72,6 @@ def create_tables(conn):
         );
     """)
     
-    # Create subscriptions table
     cur.execute("""
         CREATE TABLE subscriptions (
             subscription_id VARCHAR(20) PRIMARY KEY,
@@ -51,7 +84,6 @@ def create_tables(conn):
         );
     """)
     
-    # Create payments table
     cur.execute("""
         CREATE TABLE payments (
             payment_id VARCHAR(20) PRIMARY KEY,
@@ -63,7 +95,6 @@ def create_tables(conn):
         );
     """)
     
-    # Create costs table
     cur.execute("""
         CREATE TABLE costs (
             month VARCHAR(7) PRIMARY KEY,
@@ -73,7 +104,6 @@ def create_tables(conn):
         );
     """)
     
-    # Create indexes
     cur.execute("CREATE INDEX idx_subscriptions_customer_id ON subscriptions(customer_id);")
     cur.execute("CREATE INDEX idx_subscriptions_start_date ON subscriptions(start_date);")
     cur.execute("CREATE INDEX idx_subscriptions_end_date ON subscriptions(end_date);")
@@ -83,78 +113,78 @@ def create_tables(conn):
     cur.execute("CREATE INDEX idx_customers_signup_date ON customers(signup_date);")
     
     conn.commit()
-    print("✅ Tables created successfully")
+    print("Tables created successfully")
 
 def load_data(conn):
-    """Load CSV data into tables"""
     cur = conn.cursor()
     
-    # Load customers
     print("Loading customers...")
     df_customers = pd.read_csv('customers.csv')
     df_customers['signup_date'] = pd.to_datetime(df_customers['signup_date']).dt.date
+    
     execute_values(
         cur,
         """INSERT INTO customers (customer_id, signup_date, segment, country, acquisition_channel, is_active)
-           VALUES %s""",
+           VALUES %s
+           ON CONFLICT (customer_id) DO NOTHING""",
         [tuple(row) for row in df_customers.values]
     )
     print(f"   Loaded {len(df_customers):,} customers")
     
-    # Load subscriptions
     print("Loading subscriptions...")
     df_subscriptions = pd.read_csv('subscriptions.csv')
     df_subscriptions['start_date'] = pd.to_datetime(df_subscriptions['start_date']).dt.date
     df_subscriptions['end_date'] = pd.to_datetime(df_subscriptions['end_date'], errors='coerce').dt.date
     df_subscriptions = df_subscriptions.where(pd.notnull(df_subscriptions), None)
+    
     execute_values(
         cur,
         """INSERT INTO subscriptions (subscription_id, customer_id, plan_type, start_date, end_date, monthly_price)
-           VALUES %s""",
+           VALUES %s
+           ON CONFLICT (subscription_id) DO NOTHING""",
         [tuple(row) for row in df_subscriptions.values]
     )
     print(f"   Loaded {len(df_subscriptions):,} subscriptions")
     
-    # Load payments
     print("Loading payments...")
     df_payments = pd.read_csv('payments.csv')
     df_payments['payment_date'] = pd.to_datetime(df_payments['payment_date']).dt.date
+    
     execute_values(
         cur,
         """INSERT INTO payments (payment_id, customer_id, payment_date, amount, payment_status)
-           VALUES %s""",
+           VALUES %s
+           ON CONFLICT (payment_id) DO NOTHING""",
         [tuple(row) for row in df_payments.values]
     )
     print(f"   Loaded {len(df_payments):,} payments")
     
-    # Load costs
     print("Loading costs...")
     df_costs = pd.read_csv('costs.csv')
+    
     execute_values(
         cur,
         """INSERT INTO costs (month, infra_cost, marketing_cost, support_cost)
-           VALUES %s""",
+           VALUES %s
+           ON CONFLICT (month) DO NOTHING""",
         [tuple(row) for row in df_costs.values]
     )
     print(f"   Loaded {len(df_costs)} cost records")
     
     conn.commit()
-    print("\n✅ All data loaded successfully")
+    print("\nAll data loaded successfully")
 
 def verify_data(conn):
-    """Verify row counts"""
     cur = conn.cursor()
     
     tables = ['customers', 'subscriptions', 'payments', 'costs']
-    print("\n📊 Data Verification:")
-    print("-" * 40)
+    print("\nData Verification:")
     
     for table in tables:
         cur.execute(f"SELECT COUNT(*) FROM {table};")
         count = cur.fetchone()[0]
         print(f"   {table:15} {count:>10,} rows")
     
-    # Additional checks
     cur.execute("SELECT COUNT(*) FROM subscriptions WHERE end_date IS NULL;")
     active = cur.fetchone()[0]
     cur.execute("SELECT COUNT(*) FROM subscriptions WHERE end_date IS NOT NULL;")
@@ -163,27 +193,58 @@ def verify_data(conn):
     print(f"   Churned subscriptions: {churned:,}")
 
 def main():
-    """Main execution"""
     try:
-        # Connect to database
-        print("Connecting to PostgreSQL...")
+        print("Connecting to AWS RDS PostgreSQL...")
+        print(f"   Host: {DB_CONFIG['host']}")
+        print(f"   Database: {DB_CONFIG['database']}")
         conn = psycopg2.connect(**DB_CONFIG)
-        print("✅ Connected successfully\n")
+        print("Connected successfully\n")
         
-        # Create tables
+        existing_tables = check_tables_exist(conn)
+        tables_exist = any(existing_tables.get(table) for table in ['customers', 'subscriptions', 'payments', 'costs'])
+        
+        if tables_exist:
+            print("Existing tables detected:")
+            for table in ['customers', 'subscriptions', 'payments', 'costs']:
+                if existing_tables.get(table):
+                    count = existing_tables.get(f"{table}_count", 0)
+                    print(f"   {table}: {count:,} rows")
+            print("\nDropping existing tables to start fresh...")
+        else:
+            print("No existing tables found")
+        
         create_tables(conn)
-        
-        # Load data
         load_data(conn)
-        
-        # Verify
         verify_data(conn)
         
         conn.close()
-        print("\n✅ Database setup complete!")
+        print("\nDatabase setup complete!")
+        
+    except psycopg2.OperationalError as e:
+        print(f"\nConnection failed: {e}")
+        print("Check the configuration again")
+        return 1
+        
+    except psycopg2.errors.UniqueViolation as e:
+        print(f"\nDuplicate Key Error: {e}")
+        print("Re-running with table cleanup...")
+        try:
+            conn = psycopg2.connect(**DB_CONFIG)
+            drop_tables(conn)
+            create_tables(conn)
+            load_data(conn)
+            verify_data(conn)
+            conn.close()
+            print("\nDatabase setup complete after cleanup!")
+        except Exception as e2:
+            print(f"\nError during cleanup: {e2}")
+            return 1
+        return 0
         
     except Exception as e:
-        print(f"\n❌ Error: {e}")
+        print(f"\nError: {e}")
+        import traceback
+        traceback.print_exc()
         return 1
     
     return 0

@@ -145,7 +145,6 @@ def verify_data(conn):
     
     tables = ['customers', 'subscriptions', 'payments', 'costs']
     print("\n📊 Data Verification:")
-    print("-" * 40)
     
     for table in tables:
         cur.execute(f"SELECT COUNT(*) FROM {table};")
