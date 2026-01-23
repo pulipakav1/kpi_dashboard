@@ -1,28 +1,13 @@
-# End-to-End Business KPI Dashboard
+# KPI Dashboard
 
 ## Project Overview
 
-Build an executive KPI dashboard to track business performance across revenue, conversion, retention, and churn, including trend analysis, forecasting, and anomaly detection to support leadership decision-making.
+Built an executive KPI dashboard to track business performance across revenue, conversion, retention, and churn, including trend analysis, forecasting, and anomaly detection to support leadership decision-making.
 
 ## Data Generation
 
 ### Setup
 
-1. Install dependencies:
-```bash
-pip install -r requirements.txt
-```
-
-2. Generate the dataset:
-```bash
-python generate_saas_data.py
-```
-
-This will create 4 CSV files:
-- `customers.csv` - Customer master data
-- `subscriptions.csv` - Subscription records
-- `payments.csv` - Payment transactions
-- `costs.csv` - Monthly cost breakdowns
 
 ### Data Schema
 
