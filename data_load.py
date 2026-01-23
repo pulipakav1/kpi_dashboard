@@ -3,18 +3,18 @@ import psycopg2
 from psycopg2.extras import execute_values
 import os
 
-# connection settings
-DB_CONFIG = {
-    'host': 'database-1.cbumigc8isn9.us-east-2.rds.amazonaws.com',
-    'database': 'postgres',
-    'user': 'postgres',
-    'password': 'rohith7890',
-    'port': 5432,
-    'sslmode': 'require'
-}
+# db config
+try:
+    from config import DB_CONFIG
+except ImportError:
+    print("Error: config.py not found!")
+    print("Copy config_template.py to config.py and add your database credentials")
+    print("config.py is in .gitignore and won't be committed")
+    exit(1)
 
 
 def check_tables_exist(conn):
+    # check tables
     cur = conn.cursor()
     tables = ['customers', 'subscriptions', 'payments', 'costs']
     existing_tables = {}
@@ -41,20 +41,22 @@ def check_tables_exist(conn):
     return existing_tables
 
 def drop_tables(conn):
+    # drop tables
     cur = conn.cursor()
     
-    print("Dropping existing tables (if any)...")
+    print("Dropping tables...")
     cur.execute("DROP TABLE IF EXISTS payments CASCADE;")
     cur.execute("DROP TABLE IF EXISTS subscriptions CASCADE;")
     cur.execute("DROP TABLE IF EXISTS customers CASCADE;")
     cur.execute("DROP TABLE IF EXISTS costs CASCADE;")
     conn.commit()
-    print("Tables dropped")
+    print("Done")
 
 def create_tables(conn):
     cur = conn.cursor()
     
-    print("Cleaning up existing tables...")
+    # drop first
+    print("Cleaning up...")
     cur.execute("DROP TABLE IF EXISTS payments CASCADE;")
     cur.execute("DROP TABLE IF EXISTS subscriptions CASCADE;")
     cur.execute("DROP TABLE IF EXISTS customers CASCADE;")
@@ -104,6 +106,7 @@ def create_tables(conn):
         );
     """)
     
+    # add indexes
     cur.execute("CREATE INDEX idx_subscriptions_customer_id ON subscriptions(customer_id);")
     cur.execute("CREATE INDEX idx_subscriptions_start_date ON subscriptions(start_date);")
     cur.execute("CREATE INDEX idx_subscriptions_end_date ON subscriptions(end_date);")
@@ -113,7 +116,7 @@ def create_tables(conn):
     cur.execute("CREATE INDEX idx_customers_signup_date ON customers(signup_date);")
     
     conn.commit()
-    print("Tables created successfully")
+    print("Tables created")
 
 def load_data(conn):
     cur = conn.cursor()
@@ -175,10 +178,11 @@ def load_data(conn):
     print("\nAll data loaded successfully")
 
 def verify_data(conn):
+    # check counts
     cur = conn.cursor()
     
     tables = ['customers', 'subscriptions', 'payments', 'costs']
-    print("\nData Verification:")
+    print("\nVerification:")
     
     for table in tables:
         cur.execute(f"SELECT COUNT(*) FROM {table};")
@@ -189,36 +193,36 @@ def verify_data(conn):
     active = cur.fetchone()[0]
     cur.execute("SELECT COUNT(*) FROM subscriptions WHERE end_date IS NOT NULL;")
     churned = cur.fetchone()[0]
-    print(f"\n   Active subscriptions: {active:,}")
-    print(f"   Churned subscriptions: {churned:,}")
+    print(f"\n   Active: {active:,}")
+    print(f"   Churned: {churned:,}")
 
 def main():
     try:
-        print("Connecting to AWS RDS PostgreSQL...")
+        print("Connecting to database...")
         print(f"   Host: {DB_CONFIG['host']}")
         print(f"   Database: {DB_CONFIG['database']}")
         conn = psycopg2.connect(**DB_CONFIG)
-        print("Connected successfully\n")
+        print("Connected\n")
         
         existing_tables = check_tables_exist(conn)
         tables_exist = any(existing_tables.get(table) for table in ['customers', 'subscriptions', 'payments', 'costs'])
         
         if tables_exist:
-            print("Existing tables detected:")
+            print("Tables already exist:")
             for table in ['customers', 'subscriptions', 'payments', 'costs']:
                 if existing_tables.get(table):
                     count = existing_tables.get(f"{table}_count", 0)
                     print(f"   {table}: {count:,} rows")
-            print("\nDropping existing tables to start fresh...")
+            print("\nDropping to start fresh...")
         else:
-            print("No existing tables found")
+            print("No existing tables")
         
         create_tables(conn)
         load_data(conn)
         verify_data(conn)
         
         conn.close()
-        print("\nDatabase setup complete!")
+        print("\nDone!")
         
     except psycopg2.OperationalError as e:
         print(f"\nConnection failed: {e}")
@@ -226,8 +230,8 @@ def main():
         return 1
         
     except psycopg2.errors.UniqueViolation as e:
-        print(f"\nDuplicate Key Error: {e}")
-        print("Re-running with table cleanup...")
+        print(f"\nDuplicate key: {e}")
+        print("Cleaning up and retrying...")
         try:
             conn = psycopg2.connect(**DB_CONFIG)
             drop_tables(conn)
@@ -235,9 +239,9 @@ def main():
             load_data(conn)
             verify_data(conn)
             conn.close()
-            print("\nDatabase setup complete after cleanup!")
+            print("\nDone after cleanup!")
         except Exception as e2:
-            print(f"\nError during cleanup: {e2}")
+            print(f"\nError: {e2}")
             return 1
         return 0
         

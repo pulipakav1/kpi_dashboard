@@ -8,13 +8,13 @@ fake = Faker()
 np.random.seed(42)
 random.seed(42)
 
-# config settings
+# config
 NUM_CUSTOMERS = 10000
 START_DATE = datetime(2022, 1, 1)
 END_DATE = datetime(2024, 12, 31)
 
 segments = ["SMB", "Mid-Market", "Enterprise"]
-segment_weights = [0.6, 0.25, 0.15]  # more SMB customers
+segment_weights = [0.6, 0.25, 0.15]
 
 plans = {
     "Basic": 29.99,
@@ -22,14 +22,14 @@ plans = {
     "Enterprise": 129.99
 }
 
-# churn rates by segment - SMB churns more
+# churn rates
 churn_probability = {
     "SMB": 0.25,
     "Mid-Market": 0.15,
     "Enterprise": 0.07
 }
 
-# generate customers
+# customers
 print("Generating customers...")
 customers = []
 
@@ -57,14 +57,13 @@ for _, row in customers_df.iterrows():
     signup = pd.to_datetime(row["signup_date"])
     start_date = signup + timedelta(days=random.randint(0, 14))
 
-    # check if customer churned based on segment
+    # check churn
     churned = np.random.rand() < churn_probability[row["segment"]]
     end_date = None
 
     if churned:
         churn_months = random.randint(3, 18)
         end_date = start_date + timedelta(days=30 * churn_months)
-        # make sure end_date doesn't go past END_DATE
         if end_date > END_DATE:
             end_date = END_DATE
 
@@ -79,7 +78,7 @@ for _, row in customers_df.iterrows():
 
 subscriptions_df = pd.DataFrame(subscriptions)
 
-# generate payments
+# payments
 print("Generating payments...")
 payments = []
 
@@ -87,16 +86,14 @@ for _, sub in subscriptions_df.iterrows():
     start = pd.to_datetime(sub["start_date"])
     end = pd.to_datetime(sub["end_date"]) if pd.notnull(sub["end_date"]) else pd.to_datetime(END_DATE)
     
-    # cap at END_DATE
     end_limit = pd.to_datetime(END_DATE)
     if end > end_limit:
         end = end_limit
 
     payment_date = start
 
-    # generate monthly payments until subscription ends
     while payment_date <= end:
-        # 5% payment failure rate
+        # payment failures
         status = "Success" if random.random() > 0.05 else "Failed"
 
         payments.append({
@@ -111,7 +108,7 @@ for _, sub in subscriptions_df.iterrows():
 
 payments_df = pd.DataFrame(payments)
 
-# generate costs with some seasonality
+# costs
 print("Generating costs...")
 months = pd.period_range("2022-01", "2024-12", freq="M")
 costs = []
@@ -119,7 +116,7 @@ costs = []
 for m in months:
     base_marketing = random.randint(8000, 14000)
 
-    # marketing spend spikes in Q1
+    # Q1 spike
     if m.month in [1, 2, 3]:
         base_marketing = int(base_marketing * 1.3)
 
@@ -132,12 +129,12 @@ for m in months:
 
 costs_df = pd.DataFrame(costs)
 
-# update customer active status based on subscriptions
+# update status
 print("Updating customer active status...")
 active_customers = subscriptions_df[subscriptions_df["end_date"].isna()]["customer_id"].unique()
 customers_df["is_active"] = customers_df["customer_id"].isin(active_customers)
 
-# save to csv
+# save csv
 print("Saving CSV files...")
 customers_df.to_csv("customers.csv", index=False)
 subscriptions_df.to_csv("subscriptions.csv", index=False)
