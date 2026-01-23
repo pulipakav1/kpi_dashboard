@@ -1,14 +1,3 @@
--- ============================================
--- PostgreSQL Database Setup for KPI Dashboard
--- ============================================
-
--- Create database (run this separately if needed)
--- CREATE DATABASE kpi_dashboard;
--- \c kpi_dashboard;
-
--- ============================================
--- 1. CREATE TABLES
--- ============================================
 
 -- Customers table
 CREATE TABLE IF NOT EXISTS customers (
@@ -79,9 +68,7 @@ CREATE INDEX IF NOT EXISTS idx_customers_signup_date ON customers(signup_date);
 -- Import costs
 \copy costs FROM 'costs.csv' WITH (FORMAT csv, HEADER true, DELIMITER ',');
 
--- ============================================
--- 4. VERIFY DATA LOADED
--- ============================================
+
 
 SELECT 'customers' AS table_name, COUNT(*) AS row_count FROM customers
 UNION ALL
