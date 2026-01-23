@@ -1,10 +1,10 @@
 # End-to-End Business KPI Dashboard
 
-## 🎯 Project Overview
+## Project Overview
 
 Build an executive KPI dashboard to track business performance across revenue, conversion, retention, and churn, including trend analysis, forecasting, and anomaly detection to support leadership decision-making.
 
-## 📊 Data Generation
+## Data Generation
 
 ### Setup
 
@@ -55,7 +55,7 @@ This will create 4 CSV files:
 - `marketing_cost` (DECIMAL) - Marketing spend
 - `support_cost` (DECIMAL) - Customer support costs
 
-## 🔍 Key Features
+## Key Features
 
 ### Core KPIs
 1. **Revenue** - Total subscription revenue per month
@@ -68,16 +68,8 @@ This will create 4 CSV files:
 - **Financial Analysis** - MoM/YoY growth, gross margin
 - **Anomaly Detection** - Flag months with >10-15% revenue changes
 
-## 📈 Dashboard Pages
+## Dashboard Pages
 
 1. **Executive Overview** - Revenue trends, churn & retention, KPI tiles, forecast overlay
 2. **Customer Insights** - Churn by segment, conversion by geography, retention cohorts
 3. **Financial Health** - Cost vs revenue, gross margin trends, profitability
-
-## 🚀 Next Steps
-
-1. Load CSVs into your database (PostgreSQL/MySQL)
-2. Write SQL queries for KPIs
-3. Build visualizations in Power BI / Tableau
-4. Implement forecasting logic
-5. Add anomaly detection
