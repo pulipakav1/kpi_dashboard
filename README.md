@@ -75,7 +75,7 @@ All KPIs computed via SQL on a PostgreSQL database, exported to CSV for dashboar
 ```
 kpi_dashboard/
 │
-├── dashboard_data/csv/         # Pre-aggregated SQL output files
+├── dashboard_data/csv/         # Pre-aggregated SQL output
 │   ├── monthly_revenue.csv
 │   ├── churn_rate.csv
 │   ├── gross_margin.csv
@@ -86,7 +86,7 @@ kpi_dashboard/
 │   ├── churn_spike_detection.csv
 │   └── conversion_rate.csv
 ├── reports/
-│   └── dashboard_page1.png     # Executive dashboard screenshot
+│   └── dashboard_page1.png     # Executive dashboard
 ├── kpi.sql
 ├── forecast.sql
 ├── anomaly_detection.sql
@@ -112,10 +112,7 @@ python generate_saas_data.py
 ### Run SQL analysis
 Load CSVs into PostgreSQL using `db_setup.sql`, then run `kpi.sql`, `forecast.sql`, and `anomaly_detection.sql`.
 
-### Open dashboard
-Open `SaaS_KPI_Dashboard.pbix` in Power BI Desktop.
 
----
 
 ## Tech Stack
 
