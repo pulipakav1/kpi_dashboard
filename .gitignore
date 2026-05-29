@@ -32,6 +32,15 @@ config.py
 .DS_Store
 Thumbs.db
 
-# Project specific
-# Keep CSV files (they're data, not secrets)
-# Keep SQL files (they're scripts, not secrets)
+# dbt artifacts
+dbt/target/
+dbt/dbt_packages/
+dbt/logs/
+
+# MLflow
+mlruns/
+mlartifacts/
+
+# Claude Code
+.claude/
+CLAUDE.md

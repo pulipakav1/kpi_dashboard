@@ -1,0 +1,82 @@
+version: 2
+
+sources:
+  - name: raw
+    database: saas_analytics
+    schema: public
+    tables:
+      - name: customers
+        columns:
+          - name: customer_id
+            tests: [unique, not_null]
+          - name: segment
+            tests:
+              - accepted_values:
+                  values: ["SMB", "Mid-Market", "Enterprise"]
+      - name: subscriptions
+        columns:
+          - name: subscription_id
+            tests: [unique, not_null]
+          - name: customer_id
+            tests: [not_null, relationships: {to: source('raw', 'customers'), field: customer_id}]
+          - name: monthly_price
+            tests:
+              - not_null
+              - dbt_utils.expression_is_true:
+                  expression: ">= 0"
+      - name: payments
+        columns:
+          - name: payment_id
+            tests: [unique, not_null]
+          - name: payment_status
+            tests:
+              - accepted_values:
+                  values: ["Success", "Failed"]
+      - name: costs
+        columns:
+          - name: month
+            tests: [unique, not_null]
+
+models:
+  - name: stg_customers
+    description: "Cleaned and typed customer dimension"
+    columns:
+      - name: customer_id
+        tests: [unique, not_null]
+      - name: segment
+        tests: [not_null]
+      - name: signup_date
+        tests: [not_null]
+
+  - name: stg_subscriptions
+    description: "Cleaned subscription records with active flag"
+    columns:
+      - name: subscription_id
+        tests: [unique, not_null]
+      - name: monthly_price
+        tests:
+          - not_null
+          - dbt_utils.expression_is_true:
+              expression: ">= 0"
+
+  - name: stg_payments
+    description: "Cleaned payment records with success flag"
+    columns:
+      - name: payment_id
+        tests: [unique, not_null]
+      - name: amount
+        tests:
+          - not_null
+          - dbt_utils.expression_is_true:
+              expression: "> 0"
+
+  - name: stg_costs
+    description: "Monthly cost breakdown with total_cost derived column"
+    columns:
+      - name: month_key
+        tests: [unique, not_null]
+      - name: total_cost
+        tests:
+          - not_null
+          - dbt_utils.expression_is_true:
+              expression: ">= 0"

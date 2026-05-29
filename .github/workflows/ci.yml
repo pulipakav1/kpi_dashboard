@@ -1,0 +1,94 @@
+name: SaaS KPI Dashboard CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  dbt-validate:
+    name: dbt Compile & Test
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: dbt_user
+          POSTGRES_PASSWORD: dbt_pass
+          POSTGRES_DB: saas_analytics
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DBT_USER: dbt_user
+      DBT_PASSWORD: dbt_pass
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dbt-postgres
+        run: pip install dbt-postgres dbt-utils
+
+      - name: Seed test data
+        working-directory: dbt
+        run: |
+          cp profiles.yml.example ~/.dbt/profiles.yml
+          python ../generate_saas_data.py
+          psql "postgresql://dbt_user:dbt_pass@localhost:5432/saas_analytics" -f ../db_setup.sql
+
+      - name: dbt debug
+        working-directory: dbt
+        run: dbt debug
+
+      - name: dbt compile
+        working-directory: dbt
+        run: dbt compile
+
+      - name: dbt run
+        working-directory: dbt
+        run: dbt run
+
+      - name: dbt test
+        working-directory: dbt
+        run: dbt test
+
+      - name: Upload dbt docs
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: dbt-docs
+          path: dbt/target/
+
+  lint-sql:
+    name: SQL Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install sqlfluff
+      - name: Lint SQL files
+        run: sqlfluff lint dbt/models/ --dialect postgres
+
+  lint-python:
+    name: Python Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install ruff
+      - run: ruff check generate_saas_data.py

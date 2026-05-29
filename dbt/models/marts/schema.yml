@@ -1,0 +1,55 @@
+version: 2
+
+models:
+  - name: fct_monthly_revenue
+    description: "Monthly revenue fact table with MoM growth and cumulative totals"
+    columns:
+      - name: month
+        tests: [unique, not_null]
+      - name: revenue
+        tests:
+          - not_null
+          - dbt_utils.expression_is_true:
+              expression: ">= 0"
+      - name: paying_customers
+        tests:
+          - not_null
+          - dbt_utils.expression_is_true:
+              expression: "> 0"
+      - name: mom_revenue_growth_pct
+        description: "Month-over-month revenue growth percentage"
+
+  - name: fct_churn_metrics
+    description: "Monthly churn rate with delta tracking and segment breakdown"
+    columns:
+      - name: month
+        tests: [unique, not_null]
+      - name: churn_rate_pct
+        tests:
+          - not_null
+          - dbt_utils.expression_is_true:
+              expression: ">= 0 and churn_rate_pct <= 100"
+
+  - name: fct_gross_margin
+    description: "Monthly gross margin combining revenue and operational costs"
+    columns:
+      - name: month
+        tests: [unique, not_null]
+      - name: gross_margin_pct
+        description: "Gross margin percentage; negative values indicate loss months"
+
+  - name: dim_customers
+    description: "Customer dimension with LTV tier, segment, plan, and payment history"
+    columns:
+      - name: customer_id
+        tests: [unique, not_null]
+      - name: segment
+        tests:
+          - not_null
+          - accepted_values:
+              values: ["smb", "mid-market", "enterprise"]
+      - name: ltv_tier
+        tests:
+          - not_null
+          - accepted_values:
+              values: ["high", "medium", "low"]

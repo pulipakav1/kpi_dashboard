@@ -1,125 +1,137 @@
 # SaaS KPI Dashboard
 
-> Tracked executive-level business performance across revenue, churn, and profitability for a simulated SaaS business with 10,000 customers — surfacing that SMB drives 61% of total revenue despite having the highest churn risk, and that gross margins held above 93% consistently across 36 months.
+End-to-end SaaS analytics pipeline: synthetic data generation → PostgreSQL → dbt dimensional model (staging + mart layers with 20+ automated tests) → Power BI executive dashboard. Tracks revenue, churn, gross margin, and LTV across 10,000 customers and 36 months.
 
-![SQL](https://img.shields.io/badge/SQL-PostgreSQL-blue)
-![PowerBI](https://img.shields.io/badge/Dashboard-PowerBI-yellow)
-![Python](https://img.shields.io/badge/Data-Python-green)
+> **Key finding:** SMB drives 61% of revenue ($6.7M) while carrying the highest churn risk — reducing SMB churn by 3% annually retains ~$200K ARR.
 
----
-
-## Dashboard
-
-![KPI Dashboard](reports/dashboard_page1.png)
-
----
-
-## Key Business Findings
-
-- **$11.43M total revenue** generated across Jan 2022 — Dec 2024, growing from ~$50K/month to $603K/month
-- **SMB segment drives 61% of revenue** ($6.7M) despite churning at the highest rate — concentrated risk
-- **Gross margin consistently above 93%** across all 36 months — healthy unit economics
-- **Average monthly churn rate: 1.05%** — translates to ~12.6% annual churn, above SaaS benchmark of 5–7%
-- **MoM revenue growth:** mostly positive with occasional dips — Nov 2024 saw a -0.69% dip, recovered to +6.0% in Dec 2024
-- **8,066 paying customers** as of Dec 2024 — up from near zero in Jan 2022
-
-**Business recommendation:** The SMB segment is both the largest revenue driver and the highest churn risk. Reducing SMB churn by 3% annually would retain approximately $200K in recurring revenue — priority retention investment should target this segment first.
-
----
-
-## SQL Analysis
-
-All KPIs computed via SQL on a PostgreSQL database, exported to CSV for dashboard consumption.
-
-### Revenue by Segment
-| Segment | Total Revenue | Customers | Revenue per Customer |
-|---|---|---|---|
-| SMB | $6,697,554 | 6,020 | $1,112 |
-| Mid-Market | $2,945,493 | 2,450 | $1,202 |
-| Enterprise | $1,786,584 | 1,472 | $1,214 |
-
-### Recent Monthly Performance
-| Month | Revenue | Paying Customers | MoM Growth |
-|---|---|---|---|
-| Dec 2024 | $603,627 | 8,066 | +6.00% |
-| Nov 2024 | $569,481 | 7,855 | -0.69% |
-| Oct 2024 | $573,441 | 7,681 | +5.85% |
-
-### Gross Margin (Recent)
-| Month | Revenue | Total Costs | Gross Profit | Margin |
-|---|---|---|---|---|
-| Dec 2024 | $603,627 | $35,151 | $568,476 | 94.18% |
-| Nov 2024 | $569,481 | $34,648 | $534,833 | 93.92% |
-| Oct 2024 | $573,441 | $31,963 | $541,478 | 94.43% |
-
----
-
-## Dashboard Pages
-
-**Executive Overview** — 4 KPI tiles (Total Revenue, Avg Churn Rate, Conversion Rate, Gross Margin), Monthly Revenue Trend, Monthly Churn Rate, Revenue by Segment
-
----
-
-## SQL Modules
-
-| File | What it computes |
-|---|---|
-| `kpi.sql` | Monthly revenue, paying customers, churn rate, conversion rate |
-| `forecast.sql` | 3–6 month revenue projections |
-| `anomaly_detection.sql` | Flags months with >10–15% MoM revenue changes |
-| `db_setup.sql` | Schema setup and table creation |
-
----
-
-## Project Structure
-```
-kpi_dashboard/
-│
-├── dashboard_data/csv/         # Pre-aggregated SQL output
-│   ├── monthly_revenue.csv
-│   ├── churn_rate.csv
-│   ├── gross_margin.csv
-│   ├── mom_growth.csv
-│   ├── revenue_by_segment.csv
-│   ├── revenue_anomalies.csv
-│   ├── revenue_forecast.csv
-│   ├── churn_spike_detection.csv
-│   └── conversion_rate.csv
-├── reports/
-│   └── dashboard_page1.png     # Executive dashboard
-├── kpi.sql
-├── forecast.sql
-├── anomaly_detection.sql
-├── db_setup.sql
-├── generate_saas_data.py
-├── customers.csv
-├── subscriptions.csv
-├── payments.csv
-├── costs.csv
-└── README.md
-```
-
----
-
-## Run Locally
-
-### Generate data
-```bash
-pip install -r requirements.txt
-python generate_saas_data.py
-```
-
-### Run SQL analysis
-Load CSVs into PostgreSQL using `db_setup.sql`, then run `kpi.sql`, `forecast.sql`, and `anomaly_detection.sql`.
-
-
+![Dashboard](reports/dashboard_page1.png)
 
 ## Tech Stack
 
-| Layer | Tools |
+| Layer | Technology |
 |---|---|
-| Data Generation | Python, Faker |
-| Database | PostgreSQL |
-| Analysis | SQL |
-| Dashboard | Power BI |
-| Language | Python 3.9+ |
+| Data Generation | Python, Faker — 10K customers, 36 months, realistic churn + payment simulation |
+| Database | PostgreSQL — indexed schema, FK constraints |
+| Transformation | dbt — staging views + mart tables, 20+ schema tests, source freshness checks |
+| SQL Lint | sqlfluff — enforces PostgreSQL dialect formatting |
+| Dashboard | Power BI — executive overview with KPI tiles, trend charts, segment breakdown |
+| CI/CD | GitHub Actions — Postgres container, `dbt run` + `dbt test` on every push |
+
+## dbt Project Structure
+
+```
+dbt/
+├── models/
+│   ├── staging/                    ← views on raw tables (type casting, normalization)
+│   │   ├── stg_customers.sql       ← segment lowercase, tenure_years derived
+│   │   ├── stg_subscriptions.sql   ← is_active flag, duration_days
+│   │   ├── stg_payments.sql        ← is_successful flag, payment_month partition
+│   │   └── stg_costs.sql           ← total_cost derived column
+│   └── marts/                      ← materialized tables consumed by Power BI
+│       ├── fct_monthly_revenue.sql ← MoM growth %, cumulative revenue
+│       ├── fct_churn_metrics.sql   ← churn rate with delta tracking
+│       ├── fct_gross_margin.sql    ← revenue vs cost, margin %
+│       └── dim_customers.sql       ← LTV tier, current plan, payment history
+├── models/staging/schema.yml       ← source tests: unique, not_null, accepted_values, FK
+├── models/marts/schema.yml         ← mart tests: expression checks, accepted_values
+└── dbt_project.yml
+```
+
+**dbt Data Quality Tests (20+):**
+- `unique` + `not_null` on all primary keys
+- `accepted_values` on segment, plan_type, payment_status, ltv_tier
+- FK relationship checks (subscriptions → customers)
+- Expression tests: `monthly_price >= 0`, `amount > 0`, `churn_rate_pct BETWEEN 0 AND 100`
+
+## Quick Start
+
+```bash
+git clone https://github.com/pulipakav1/kpi_dashboard.git
+cd kpi_dashboard-main
+
+pip install -r requirements.txt
+python generate_saas_data.py          # generates customers.csv, subscriptions.csv, payments.csv, costs.csv
+
+# Load into PostgreSQL
+psql -U postgres -d saas_analytics -f db_setup.sql
+
+# Run dbt
+cd dbt
+cp profiles.yml.example ~/.dbt/profiles.yml   # edit DB creds
+dbt deps
+dbt run
+dbt test
+```
+
+## Simulated Dataset
+
+| Table | Rows | Description |
+|---|---|---|
+| customers | 10,000 | Signup date, segment (SMB/Mid-Market/Enterprise), country, channel |
+| subscriptions | 10,000 | Plan type, monthly price, churn date if applicable |
+| payments | ~168,000 | Monthly payments, 95% success rate |
+| costs | 36 | Monthly infra + marketing + support costs |
+
+**Churn rates by segment:** SMB 25% · Mid-Market 15% · Enterprise 7%
+
+## Business Results (36-month summary)
+
+| Metric | Value |
+|---|---|
+| Total Revenue | $11.43M |
+| Avg Monthly Churn | 1.05% (~12.6% annualized) |
+| Avg Gross Margin | 93–94% |
+| Paying Customers (Dec 2024) | 8,066 |
+| MoM Revenue Growth (Dec 2024) | +6.0% |
+
+### Revenue by Segment
+
+| Segment | Revenue | Customers | Avg LTV |
+|---|---|---|---|
+| SMB | $6.7M (61%) | 6,020 | $1,112 |
+| Mid-Market | $2.9M (26%) | 2,450 | $1,202 |
+| Enterprise | $1.8M (16%) | 1,472 | $1,214 |
+
+## SQL Modules (Legacy — now replaced by dbt)
+
+| File | What it computes |
+|---|---|
+| `kpi.sql` | Monthly revenue, churn rate, conversion, MoM/YoY growth, LTV |
+| `forecast.sql` | 3–6 month revenue projections (moving average, linear, seasonal) |
+| `anomaly_detection.sql` | Flags months with >10–15% MoM revenue changes or churn spikes |
+
+## CI/CD
+
+GitHub Actions (`.github/workflows/ci.yml`) on every push:
+
+1. **Spin up Postgres 15** container via service container
+2. **Seed data** — run `generate_saas_data.py` + `db_setup.sql`
+3. **dbt compile → dbt run → dbt test** — full model + test suite
+4. **sqlfluff** — SQL dialect linting on all dbt models
+5. **ruff** — Python linting on generator script
+
+## Dashboard Highlights
+
+Power BI executive dashboard (`reports/dashboard_page1.png`):
+
+- 4 KPI tiles: Total Revenue · Avg Churn Rate · Conversion Rate · Gross Margin
+- Monthly Revenue Trend (36-month line chart)
+- Monthly Churn Rate trend
+- Revenue by Segment (stacked bar)
+- Gross Margin trend
+
+## Project Structure
+
+```
+kpi_dashboard-main/
+├── dbt/                            ← dbt project (staging + marts + schema tests)
+├── dashboard_data/csv/             ← pre-aggregated SQL exports
+├── reports/dashboard_page1.png     ← Power BI executive dashboard
+├── kpi.sql                         ← raw KPI queries
+├── forecast.sql                    ← revenue forecasting queries
+├── anomaly_detection.sql           ← anomaly detection queries
+├── db_setup.sql                    ← PostgreSQL schema + data import
+├── generate_saas_data.py           ← synthetic data generator
+├── .github/workflows/ci.yml        ← GitHub Actions CI
+└── requirements.txt
+```
