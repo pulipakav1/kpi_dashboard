@@ -18,7 +18,11 @@ sources:
           - name: subscription_id
             tests: [unique, not_null]
           - name: customer_id
-            tests: [not_null, relationships: {to: source('raw', 'customers'), field: customer_id}]
+            tests:
+              - not_null
+              - relationships:
+                  to: source('raw', 'customers')
+                  field: customer_id
           - name: monthly_price
             tests:
               - not_null
