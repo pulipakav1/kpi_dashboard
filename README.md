@@ -92,13 +92,26 @@ dbt test
 | Mid-Market | $2.9M (26%) | 2,450 | $1,202 |
 | Enterprise | $1.8M (16%) | 1,472 | $1,214 |
 
-## SQL Modules (Legacy — now replaced by dbt)
+## SQL Modules
 
 | File | What it computes |
 |---|---|
 | `kpi.sql` | Monthly revenue, churn rate, conversion, MoM/YoY growth, LTV |
 | `forecast.sql` | 3–6 month revenue projections (moving average, linear, seasonal) |
 | `anomaly_detection.sql` | Flags months with >10–15% MoM revenue changes or churn spikes |
+
+## Forecast Validation
+
+`scripts/forecast_validation.py` runs walk-forward backtesting across all three forecast methods:
+
+- Trains on months 1–24, evaluates rolling 3-month horizons
+- Reports **MAPE** and **RMSE** per method across all folds
+- Identifies the best-performing method with quantified accuracy
+- Output: `reports/forecast_validation.png`
+
+```bash
+python scripts/forecast_validation.py
+```
 
 ## CI/CD
 
@@ -125,8 +138,12 @@ Power BI executive dashboard (`reports/dashboard_page1.png`):
 ```
 kpi_dashboard-main/
 ├── dbt/                            ← dbt project (staging + marts + schema tests)
+├── scripts/
+│   └── forecast_validation.py      ← walk-forward backtesting for forecast methods
 ├── dashboard_data/csv/             ← pre-aggregated SQL exports
-├── reports/dashboard_page1.png     ← Power BI executive dashboard
+├── reports/
+│   ├── dashboard_page1.png         ← Power BI executive dashboard
+│   └── forecast_validation.png     ← MAPE/RMSE comparison across forecast methods
 ├── kpi.sql                         ← raw KPI queries
 ├── forecast.sql                    ← revenue forecasting queries
 ├── anomaly_detection.sql           ← anomaly detection queries
