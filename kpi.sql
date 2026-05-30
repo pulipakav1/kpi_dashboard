@@ -1,7 +1,6 @@
 -- KPI queries for dashboard
--- started working on these after getting the data loaded
 
--- monthly revenue - basic one to start
+-- monthly revenue
 SELECT 
     DATE_TRUNC('month', payment_date) AS month,
     SUM(amount) AS monthly_revenue,
@@ -37,8 +36,6 @@ GROUP BY s.plan_type, DATE_TRUNC('month', p.payment_date)
 ORDER BY month DESC, plan_revenue DESC;
 
 -- churn rate calculation
--- formula: churned / total customers * 100
--- had to think about this one for a bit
 WITH monthly_customers AS (
     SELECT 
         DATE_TRUNC('month', start_date) AS month,
@@ -77,7 +74,7 @@ FULL OUTER JOIN monthly_churned mch ON ma.month = mch.month
 FULL OUTER JOIN monthly_customers mc ON COALESCE(ma.month, mch.month) = mc.month
 ORDER BY month DESC;
 
--- churn by segment - this one was tricky
+-- churn by segment
 SELECT 
     c.segment,
     DATE_TRUNC('month', s.end_date) AS month,
@@ -95,8 +92,7 @@ WHERE s.end_date IS NOT NULL
 GROUP BY c.segment, DATE_TRUNC('month', s.end_date)
 ORDER BY month DESC, churn_rate_pct DESC;
 
--- retention rate
--- (customers at end - new) / customers at start
+-- retention rate: (customers at end - new) / customers at start
 WITH monthly_start AS (
     SELECT 
         DATE_TRUNC('month', payment_date) AS month,
@@ -140,7 +136,6 @@ LEFT JOIN monthly_new mn ON ms.month = mn.month
 ORDER BY ms.month DESC;
 
 -- conversion rate
--- assuming signup = trial start, might need to adjust
 SELECT 
     DATE_TRUNC('month', c.signup_date) AS month,
     COUNT(DISTINCT c.customer_id) AS total_signups,
@@ -243,8 +238,7 @@ LEFT JOIN monthly_revenue prev
     AND mr.year = prev.year + 1
 ORDER BY mr.month DESC;
 
--- gross margin calculation
--- revenue - costs / revenue
+-- gross margin: (revenue - costs) / revenue
 SELECT 
     c.month,
     COALESCE(SUM(p.amount), 0) AS revenue,

@@ -1,5 +1,4 @@
 -- forecasting queries
--- trying a few different approaches, not sure which one works best yet
 
 -- historical revenue with moving averages
 WITH monthly_revenue AS (
@@ -167,8 +166,7 @@ CROSS JOIN forecast_months fm
 JOIN yoy_growth yg ON fm.forecast_month_num = yg.month_num
 ORDER BY forecast_month;
 
--- combined forecast - using both methods
--- this is probably the most accurate
+-- combined forecast: average of moving average and linear trend methods
 WITH monthly_revenue AS (
     SELECT 
         DATE_TRUNC('month', payment_date) AS month,
