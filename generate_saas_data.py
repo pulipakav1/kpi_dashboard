@@ -1,8 +1,9 @@
-import pandas as pd
-import numpy as np
-from faker import Faker
-from datetime import datetime, timedelta
 import random
+from datetime import datetime, timedelta
+
+import numpy as np
+import pandas as pd
+from faker import Faker
 
 fake = Faker()
 np.random.seed(42)
@@ -85,7 +86,7 @@ payments = []
 for _, sub in subscriptions_df.iterrows():
     start = pd.to_datetime(sub["start_date"])
     end = pd.to_datetime(sub["end_date"]) if pd.notnull(sub["end_date"]) else pd.to_datetime(END_DATE)
-    
+
     end_limit = pd.to_datetime(END_DATE)
     if end > end_limit:
         end = end_limit
@@ -142,13 +143,13 @@ payments_df.to_csv("payments.csv", index=False)
 costs_df.to_csv("costs.csv", index=False)
 
 print("\nSaaS dataset generated successfully!")
-print(f"Summary:")
+print("Summary:")
 print(f"   - Customers: {len(customers_df):,}")
 print(f"   - Subscriptions: {len(subscriptions_df):,}")
 print(f"   - Payments: {len(payments_df):,}")
 print(f"   - Cost records: {len(costs_df)}")
-print(f"\nFiles created:")
-print(f"   - customers.csv")
-print(f"   - subscriptions.csv")
-print(f"   - payments.csv")
-print(f"   - costs.csv")
+print("\nFiles created:")
+print("   - customers.csv")
+print("   - subscriptions.csv")
+print("   - payments.csv")
+print("   - costs.csv")

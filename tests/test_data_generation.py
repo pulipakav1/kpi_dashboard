@@ -1,7 +1,6 @@
 """Tests for the synthetic data generator."""
 
 import pandas as pd
-import pytest
 
 
 def test_customers_shape(customers_df: pd.DataFrame):

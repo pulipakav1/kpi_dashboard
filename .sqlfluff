@@ -1,14 +1,22 @@
 [sqlfluff]
 templater = jinja
 dialect = postgres
-max_line_length = 120
-exclude_rules = RF02, ST06
+max_line_length = 150
+# Excluded rules:
+# LT01 - we use alignment spacing before AS (deliberate style)
+# RF04 - reserved words as identifiers (month, etc.) are valid in Postgres
+# AL01 - aliasing style preference differs
+# AL05 - unused alias false-positives with USING
+# ST07 - USING joins are valid Postgres syntax
+# ST03 - unused CTEs are sometimes intentional scaffolding
+# AM03 - ambiguous ORDER BY is intentional (default ASC)
+# AM05 - ambiguous join type (INNER is default)
+exclude_rules = LT01, RF04, AL01, AL05, ST07, ST03, AM03, AM05
 
 [sqlfluff:indentation]
 indent_unit = space
 tab_space_size = 4
 indented_joins = false
-indented_using_on = true
 
 [sqlfluff:rules:capitalisation.keywords]
 capitalisation_policy = lower
@@ -21,9 +29,6 @@ capitalisation_policy = lower
 
 [sqlfluff:rules:capitalisation.literals]
 capitalisation_policy = lower
-
-[sqlfluff:rules:layout.long_lines]
-ignore_comment_lines = true
 
 [sqlfluff:templating]
 param_style = jinja

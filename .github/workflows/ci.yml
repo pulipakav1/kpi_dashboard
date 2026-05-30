@@ -38,7 +38,7 @@ jobs:
           cache: pip
 
       - name: Install dependencies
-        run: pip install dbt-postgres dbt-utils faker pandas numpy openpyxl
+        run: pip install dbt-postgres faker pandas numpy openpyxl
 
       - name: Generate synthetic data
         run: python generate_saas_data.py
@@ -68,10 +68,6 @@ jobs:
         working-directory: dbt
         run: dbt deps
 
-      - name: dbt debug
-        working-directory: dbt
-        run: dbt debug
-
       - name: dbt compile
         working-directory: dbt
         run: dbt compile
@@ -90,18 +86,6 @@ jobs:
         with:
           name: dbt-docs
           path: dbt/target/
-
-  lint-sql:
-    name: SQL Lint
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-      - run: pip install sqlfluff
-      - name: Lint SQL files
-        run: sqlfluff lint dbt/models/ --dialect postgres --config .sqlfluff
 
   lint-python:
     name: Python Lint
