@@ -37,15 +37,36 @@ jobs:
           python-version: "3.11"
           cache: pip
 
-      - name: Install dbt-postgres
-        run: pip install dbt-postgres dbt-utils
+      - name: Install dependencies
+        run: pip install dbt-postgres dbt-utils faker pandas numpy openpyxl
 
-      - name: Seed test data
-        working-directory: dbt
+      - name: Generate synthetic data
+        run: python generate_saas_data.py
+
+      - name: Load data into PostgreSQL
+        run: psql "postgresql://dbt_user:dbt_pass@localhost:5432/saas_analytics" -f db_setup.sql
+
+      - name: Configure dbt profile
         run: |
-          cp profiles.yml.example ~/.dbt/profiles.yml
-          python ../generate_saas_data.py
-          psql "postgresql://dbt_user:dbt_pass@localhost:5432/saas_analytics" -f ../db_setup.sql
+          mkdir -p ~/.dbt
+          cat > ~/.dbt/profiles.yml << 'EOF'
+          saas_kpi:
+            target: dev
+            outputs:
+              dev:
+                type: postgres
+                host: localhost
+                port: 5432
+                user: dbt_user
+                password: dbt_pass
+                dbname: saas_analytics
+                schema: public
+                threads: 4
+          EOF
+
+      - name: dbt deps
+        working-directory: dbt
+        run: dbt deps
 
       - name: dbt debug
         working-directory: dbt
@@ -80,7 +101,7 @@ jobs:
           python-version: "3.11"
       - run: pip install sqlfluff
       - name: Lint SQL files
-        run: sqlfluff lint dbt/models/ --dialect postgres
+        run: sqlfluff lint dbt/models/ --dialect postgres --config .sqlfluff
 
   lint-python:
     name: Python Lint
@@ -91,4 +112,4 @@ jobs:
         with:
           python-version: "3.11"
       - run: pip install ruff
-      - run: ruff check generate_saas_data.py
+      - run: ruff check generate_saas_data.py tests/
